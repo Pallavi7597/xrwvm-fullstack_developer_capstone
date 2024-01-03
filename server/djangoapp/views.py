@@ -47,26 +47,38 @@ def logout_request(request):
 
 
 # Create a `registration` view to handle sign up request
-@csrf_exempt
 def registration(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('userName')
+            password = data.get('password')
+            first_name = data.get('firstName')
+            last_name = data.get('lastName')
+            email = data.get('email')
 
-    data = json.loads(request.body)
-    username = data['userName']
-    password = data['password']
-    first_name = data['firstName']
-    last_name = data['lastName']
-    email = data['email']
-    username_exist = False
-    # email_exist = False
-    try:
-        # Check if user already exists
-        User.objects.get(username=username)
-        username_exist = True
-    except:
-        # If not, simply log this is a new user
-        logger.debug("{} is new user".format(username))
-    finally:
-        print("Registration request successful!")
+            if User.objects.filter(username=username).exists():
+                # Username already exists
+                return JsonResponse({'message': 'Username already exists'}, status=400)
+            else:
+                # Create a new user
+                new_user = User.objects.create_user(username=username, password=password, 
+                                                    first_name=first_name, last_name=last_name, 
+                                                    email=email)
+                logger.debug(f"New user '{username}' registered successfully")
+                return JsonResponse({'message': 'Registration successful'})
+        except json.JSONDecodeError as e:
+            # Handle JSON decoding error
+            return JsonResponse({'message': 'Invalid JSON format'}, status=400)
+        except KeyError as e:
+            # Handle missing or incorrect keys in the JSON data
+            return JsonResponse({'message': f'Missing or incorrect key: {e}'}, status=400)
+        except Exception as e:
+            # Catch other exceptions and handle them appropriately
+            logger.error(f"Error during registration: {e}")
+            return JsonResponse({'message': 'An error occurred during registration'}, status=500)
+    else:
+        return JsonResponse({'message': 'Method not allowed'}, status=405)
 
     # If it is a new user
     if not username_exist:
@@ -122,19 +134,18 @@ def get_dealer_details(request, dealer_id):
 
 # Create a `add_review` view to submit a review
 def add_review(request):
-    if (request.user.is_anonymous is False):
+    if not request.user.is_anonymous:
         data = json.loads(request.body)
         try:
             response = post_review(data)
             return JsonResponse({"status": 200})
-        except:
-            return JsonResponse({"status": 401,
-                                 "message": "Error in posting review"})
+        except Exception as e:
+            error_message = "Error in posting review: {}".format(str(e))
+            return JsonResponse({"status": 401, "message": error_message})
         finally:
-            print("add_review request successful!")
+            print("add_review request processed!")
     else:
-        return JsonResponse({"status": 403,
-                             "message": "Unauthorized"})
+        return JsonResponse({"status": 403, "message": "Unauthorized"})
 
 
 def get_cars(request):
