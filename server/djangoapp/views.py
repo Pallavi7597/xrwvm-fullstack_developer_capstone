@@ -62,7 +62,7 @@ def registration(request):
         # Check if user already exists
         User.objects.get(username=username)
         username_exist = True
-    except:
+    except Exception as e:
         # If not, simply log this is a new user
         logger.debug("{} is new user".format(username))
     finally:
@@ -134,8 +134,7 @@ def add_review(request):
             print("add_review request processed!")
     else:
         return JsonResponse({"status": 403, "message": "Unauthorized"})
-
-
+        
 
 def get_cars(request):
     count = CarMake.objects.filter().count()
